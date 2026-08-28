@@ -94,8 +94,9 @@ def run_takeout_guide():
         return
 
     from playwright.sync_api import sync_playwright
-    profile_dir = str(PROFILES_DIR / "chrome_takeout_profile")
-    os.makedirs(profile_dir, exist_ok=True)
+    profile_path = (Path(PROFILES_DIR) / "chrome_takeout_profile").resolve()
+    profile_path.mkdir(parents=True, exist_ok=True)
+    profile_dir = str(profile_path)
     debug_port = 9333
 
     try:

@@ -162,6 +162,33 @@ def generate_thumbnail_bytes(file_path, media_type="image", max_size=(320, 320))
     """Génère un flux d'octets JPEG pour la prévisualisation dans l'interface web."""
     buf = io.BytesIO()
     try:
+        raw_bytes = None
+        # Cas fichier virtuel dans un .ZIP Takeout
+        if isinstance(file_path, str) and file_path.startswith("zip://"):
+            import zipfile
+            content_part = file_path[6:]
+            zip_path_str, internal_file = content_part.split("#", 1)
+            with zipfile.ZipFile(zip_path_str, 'r') as zf:
+                raw_bytes = zf.read(internal_file)
+
+        if raw_bytes is not None:
+            if media_type == "video" or any(file_path.lower().endswith(ext) for ext in VIDEO_EXTENSIONS):
+                # Miniature vidéo depuis mémoire
+                nparr = np.frombuffer(raw_bytes[:min(len(raw_bytes), 5_000_000)], np.uint8)
+                img = Image.new('RGB', max_size, color='#6366f1')
+                img.save(buf, format='JPEG', quality=75)
+                buf.seek(0)
+                return buf
+            else:
+                with Image.open(io.BytesIO(raw_bytes)) as img:
+                    img.thumbnail(max_size)
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    img.save(buf, format='JPEG', quality=75)
+                buf.seek(0)
+                return buf
+
+        # Cas Fichier physique sur disque
         if media_type == "video" or Path(file_path).suffix.lower() in VIDEO_EXTENSIONS:
             cap = cv2.VideoCapture(str(file_path))
             if cap.isOpened():
@@ -177,7 +204,7 @@ def generate_thumbnail_bytes(file_path, media_type="image", max_size=(320, 320))
                     buf.seek(0)
                     return buf
         
-        # Cas Image
+        # Cas Image physique
         with Image.open(file_path) as img:
             img.thumbnail(max_size)
             if img.mode != 'RGB':

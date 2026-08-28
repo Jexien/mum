@@ -1,12 +1,13 @@
-"""Gestion de la base de données SQLite pour l'indexation des photos et vidéos."""
-
 import sqlite3
 import os
+from pathlib import Path
 from .config import DB_PATH
 
 def get_db_connection():
     """Crée une connexion optimisée à la base de données SQLite."""
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    db_file = Path(DB_PATH).resolve()
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_file), timeout=30)
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
     conn.row_factory = sqlite3.Row

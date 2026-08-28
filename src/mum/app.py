@@ -14,6 +14,7 @@ from .database import init_db, get_db_connection
 from .scanner import get_system_drives, scan_directory
 from .gdrive import scan_gdrive_account
 from .takeout import run_takeout_guide, guide_status, guide_manual_advance
+from .takeout_scanner import detect_takeout_archives, scan_takeout_zip
 from .deduplicator import get_exact_duplicate_groups, get_similar_media_groups
 from .transfer import safe_centralize_and_clean, transfer_progress
 from .media_processor import generate_thumbnail_bytes
@@ -99,6 +100,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   <!-- ==================== TAB 1 : SOURCES ==================== -->
   <section id="tab-sources" class="space-y-6">
+    <!-- AUTO DETECTED TAKEOUT BANNER -->
+    <div id="takeoutBanner" class="hidden bg-amber-500 text-white rounded-2xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">
+          <i class="fa-solid fa-file-zipper"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-base">Archives Google Takeout détectées dans Téléchargements !</h3>
+          <p id="takeoutBannerText" class="text-xs text-amber-100">Des archives ZIP ont été trouvées. MUM peut les analyser directement sans décompression.</p>
+        </div>
+      </div>
+      <div id="takeoutBannerActions" class="flex items-center space-x-3"></div>
+    </div>
+
     <!-- TARGET DRIVE SELECTOR BANNER -->
     <div class="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
       <div class="space-y-1">
@@ -153,14 +168,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
           <div>
             <h3 class="font-bold text-slate-900 text-base">Google Photos (Takeout)</h3>
-            <p class="text-xs text-slate-500 mt-1">Assistant automatique pour télécharger l'ensemble de votre photothèque Google.</p>
+            <p class="text-xs text-slate-500 mt-1">Assistant d'export ou lecture directe de vos fichiers .ZIP sans décompression.</p>
           </div>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-100 space-y-3">
-          <div id="takeoutStatus" class="text-xs text-slate-500 truncate">Prêt à démarrer</div>
-          <button onclick="startTakeoutGuide()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-            <span>Lancer l'Assistant Takeout</span>
+        <div class="mt-6 pt-4 border-t border-slate-100 space-y-2">
+          <div id="takeoutStatus" class="text-xs text-slate-500 truncate">Prêt</div>
+          <button onclick="promptScanTakeoutZip()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-file-zipper"></i>
+            <span>📦 Scanner un fichier .ZIP Takeout</span>
+          </button>
+          <button onclick="startTakeoutGuide()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs py-2 rounded-xl transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
+            <span>Lancer l'Assistant Export Google</span>
           </button>
         </div>
       </div>
@@ -226,7 +245,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         <ul class="list-disc list-inside space-y-1 text-amber-800">
           <li><strong>Smartphone préservé :</strong> Vos photos sur téléphone sont copiées mais <strong>JAMAIS supprimées</strong> du téléphone.</li>
           <li><strong>Copie atomique vérifiée :</strong> Un fichier source n'est effacé que si sa copie sur le disque cible a été vérifiée octet par octet.</li>
-          <li><strong>Zéro doublon résiduel :</strong> Si un fichier existe déjà sur la cible, la copie superflue est ignorée.</li>
+          <li><strong>Zéro doublon résiduel :</strong> Si un fichier existe déjà sur la cible, la copie superflue est fusionnée.</li>
+          <li><strong>Support direct ZIP :</strong> Les médias dans les archives Takeout .ZIP sont extraits directement sur la cible.</li>
         </ul>
       </div>
 
@@ -335,6 +355,58 @@ async function loadDrives() {
   });
 }
 
+async function checkDetectedTakeouts() {
+  try {
+    const res = await fetch('/api/detect_takeout');
+    const archives = await res.json();
+    const banner = document.getElementById('takeoutBanner');
+    const actions = document.getElementById('takeoutBannerActions');
+
+    if (archives && archives.length > 0) {
+      banner.classList.remove('hidden');
+      actions.innerHTML = '';
+      archives.forEach(arc => {
+        const btn = document.createElement('button');
+        btn.className = "bg-white text-amber-800 hover:bg-amber-50 font-bold text-xs px-4 py-2 rounded-xl transition shadow whitespace-nowrap";
+        btn.innerText = `Scanner ${arc.name} (${arc.size_gb} Go)`;
+        btn.onclick = () => scanTakeoutZipPath(arc.path);
+        actions.appendChild(btn);
+      });
+    }
+  } catch (e) {}
+}
+
+async function promptScanTakeoutZip() {
+  const p = prompt("Entrez le chemin complet du fichier .zip Google Takeout sur votre ordinateur (ex: C:\\Users\\...\\Downloads\\takeout-2026.zip) :");
+  if (p) scanTakeoutZipPath(p);
+}
+
+async function scanTakeoutZipPath(pathStr) {
+  const statusElem = document.getElementById('takeoutStatus');
+  statusElem.innerText = "Scan du ZIP Takeout démarré...";
+
+  const res = await fetch('/api/scan_takeout_zip', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({path: pathStr})
+  });
+  const data = await res.json();
+  if (data.status === 'error') {
+    alert(data.message);
+    return;
+  }
+
+  const timer = setInterval(async () => {
+    const pRes = await fetch(`/api/progress?path=${encodeURIComponent(pathStr)}`);
+    const p = await pRes.json();
+    statusElem.innerText = `${p.status} (${p.count} trouvés)`;
+    if (p.done) {
+      clearInterval(timer);
+      updateLiveStats();
+    }
+  }, 1000);
+}
+
 async function saveTargetDrive() {
   const select = document.getElementById('targetDriveSelect');
   const path = select.value;
@@ -400,72 +472,78 @@ async function startTakeoutGuide() {
 }
 
 async function updateLiveStats() {
-  const res = await fetch('/api/live_stats');
-  const stats = await res.json();
-  document.getElementById('statTotal').innerText = stats.total;
-  document.getElementById('statDuplicates').innerText = stats.duplicates_groups;
-  if (stats.target_drive) {
-    currentTargetDrive = stats.target_drive;
-    document.getElementById('statTarget').innerText = stats.target_drive;
-  }
+  try {
+    const res = await fetch('/api/live_stats');
+    const stats = await res.json();
+    document.getElementById('statTotal').innerText = stats.total;
+    document.getElementById('statDuplicates').innerText = stats.duplicates_groups;
+    if (stats.target_drive) {
+      currentTargetDrive = stats.target_drive;
+      document.getElementById('statTarget').innerText = stats.target_drive;
+    }
+  } catch (e) {}
 }
 
 async function loadExactDuplicates() {
   const list = document.getElementById('exactDuplicatesList');
   list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Chargement des doublons exacts...</div>';
 
-  const res = await fetch('/api/exact_duplicates');
-  const groups = await res.json();
+  try {
+    const res = await fetch('/api/exact_duplicates');
+    const groups = await res.json();
 
-  if (!groups || groups.length === 0) {
-    list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">🎉 Aucun doublon exact détecté dans votre photothèque !</div>';
-    return;
-  }
+    if (!groups || groups.length === 0) {
+      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">🎉 Aucun doublon exact détecté dans votre photothèque !</div>';
+      return;
+    }
 
-  list.innerHTML = '';
-  groups.forEach(g => {
-    const card = document.createElement('div');
-    card.className = "bg-white rounded-2xl p-5 border border-slate-200 card-shadow space-y-4";
-    
-    let itemsHtml = '';
-    g.items.forEach(it => {
-      const isMasterBadge = it.is_master 
-        ? '<span class="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold">✅ Gardé</span>'
-        : '<span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-bold">🗑️ Doublon</span>';
+    list.innerHTML = '';
+    groups.forEach(g => {
+      const card = document.createElement('div');
+      card.className = "bg-white rounded-2xl p-5 border border-slate-200 card-shadow space-y-4";
       
-      const mediaBadge = it.media_type === 'video'
-        ? `<span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold"><i class="fa-solid fa-video"></i> ${it.duration}s</span>`
-        : `<span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold"><i class="fa-solid fa-image"></i> ${it.resolution}</span>`;
+      let itemsHtml = '';
+      g.items.forEach(it => {
+        const isMasterBadge = it.is_master 
+          ? '<span class="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold">✅ Gardé</span>'
+          : '<span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-bold">🗑️ Doublon</span>';
+        
+        const mediaBadge = it.media_type === 'video'
+          ? `<span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold"><i class="fa-solid fa-video"></i> ${it.duration}s</span>`
+          : `<span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold"><i class="fa-solid fa-image"></i> ${it.resolution}</span>`;
 
-      itemsHtml += `
-        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-          <div class="flex items-center space-x-3 overflow-hidden">
-            <img src="/api/thumb/${it.id}" class="w-12 h-12 object-cover rounded-lg bg-slate-200 flex-shrink-0" onerror="this.src=''">
-            <div class="truncate">
-              <div class="font-bold text-slate-800 truncate">${it.name}</div>
-              <div class="text-slate-400 truncate">${it.source} &bull; ${it.size_kb} Ko &bull; ${it.date}</div>
+        itemsHtml += `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+            <div class="flex items-center space-x-3 overflow-hidden">
+              <img src="/api/thumb/${it.id}" class="w-12 h-12 object-cover rounded-lg bg-slate-200 flex-shrink-0" onerror="this.src=''">
+              <div class="truncate">
+                <div class="font-bold text-slate-800 truncate">${it.name}</div>
+                <div class="text-slate-400 truncate">${it.source} &bull; ${it.size_kb} Ko &bull; ${it.date}</div>
+              </div>
+            </div>
+            <div class="flex items-center space-x-3 flex-shrink-0">
+              ${mediaBadge}
+              ${isMasterBadge}
             </div>
           </div>
-          <div class="flex items-center space-x-3 flex-shrink-0">
-            ${mediaBadge}
-            ${isMasterBadge}
+        `;
+      });
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center space-x-2 font-bold text-sm text-slate-800">
+            <i class="fa-solid fa-copy text-amber-500"></i>
+            <span>${g.file_name}</span>
+            <span class="text-xs text-slate-400 font-normal">(${g.count} copies &bull; ${g.size_str})</span>
           </div>
         </div>
+        <div class="space-y-2">${itemsHtml}</div>
       `;
+      list.appendChild(card);
     });
-
-    card.innerHTML = `
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <div class="flex items-center space-x-2 font-bold text-sm text-slate-800">
-          <i class="fa-solid fa-copy text-amber-500"></i>
-          <span>${g.file_name}</span>
-          <span class="text-xs text-slate-400 font-normal">(${g.count} copies &bull; ${g.size_str})</span>
-        </div>
-      </div>
-      <div class="space-y-2">${itemsHtml}</div>
-    `;
-    list.appendChild(card);
-  });
+  } catch (e) {
+    list.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">Erreur de chargement. Vérifiez que des scans ont été lancés.</div>';
+  }
 }
 
 async function deleteAllExactDuplicates() {
@@ -481,47 +559,51 @@ async function loadSimilarMedia() {
   const list = document.getElementById('similarMediaList');
   list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Analyse des similarités perceptuelles (pHash)...</div>';
 
-  const res = await fetch('/api/similar_media');
-  const clusters = await res.json();
+  try {
+    const res = await fetch('/api/similar_media');
+    const clusters = await res.json();
 
-  if (!clusters || clusters.length === 0) {
-    list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">✨ Aucune photo ou vidéo similaire en rafale détectée.</div>';
-    return;
-  }
+    if (!clusters || clusters.length === 0) {
+      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">✨ Aucune photo ou vidéo similaire en rafale détectée.</div>';
+      return;
+    }
 
-  list.innerHTML = '';
-  clusters.forEach(c => {
-    const card = document.createElement('div');
-    card.className = "bg-white rounded-2xl p-6 border border-slate-200 card-shadow space-y-4";
+    list.innerHTML = '';
+    clusters.forEach(c => {
+      const card = document.createElement('div');
+      card.className = "bg-white rounded-2xl p-6 border border-slate-200 card-shadow space-y-4";
 
-    let gridHtml = '';
-    c.items.forEach(it => {
-      const recBorder = it.is_recommended ? 'border-2 border-emerald-500' : 'border border-slate-200';
-      const recBadge = it.is_recommended ? '<div class="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">⭐ Recommandé</div>' : '';
+      let gridHtml = '';
+      c.items.forEach(it => {
+        const recBorder = it.is_recommended ? 'border-2 border-emerald-500' : 'border border-slate-200';
+        const recBadge = it.is_recommended ? '<div class="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">⭐ Recommandé</div>' : '';
 
-      gridHtml += `
-        <div class="relative bg-slate-50 rounded-xl overflow-hidden ${recBorder} flex flex-col justify-between">
-          ${recBadge}
-          <div class="aspect-square bg-slate-200 overflow-hidden flex items-center justify-center">
-            <img src="/api/thumb/${it.id}" class="w-full h-full object-cover">
+        gridHtml += `
+          <div class="relative bg-slate-50 rounded-xl overflow-hidden ${recBorder} flex flex-col justify-between">
+            ${recBadge}
+            <div class="aspect-square bg-slate-200 overflow-hidden flex items-center justify-center">
+              <img src="/api/thumb/${it.id}" class="w-full h-full object-cover">
+            </div>
+            <div class="p-3 text-xs space-y-1">
+              <div class="font-bold text-slate-800 truncate">${it.name}</div>
+              <div class="text-slate-500">${it.resolution} &bull; ${it.size_kb} Ko</div>
+              <div class="text-[11px] text-slate-400 truncate">${it.source}</div>
+            </div>
           </div>
-          <div class="p-3 text-xs space-y-1">
-            <div class="font-bold text-slate-800 truncate">${it.name}</div>
-            <div class="text-slate-500">${it.resolution} &bull; ${it.size_kb} Ko</div>
-            <div class="text-[11px] text-slate-400 truncate">${it.source}</div>
-          </div>
+        `;
+      });
+
+      card.innerHTML = `
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <span class="text-xs font-bold uppercase text-indigo-600 tracking-wider">Groupe de similarité (${c.count} prises)</span>
         </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">${gridHtml}</div>
       `;
+      list.appendChild(card);
     });
-
-    card.innerHTML = `
-      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <span class="text-xs font-bold uppercase text-indigo-600 tracking-wider">Groupe de similarité (${c.count} prises)</span>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">${gridHtml}</div>
-    `;
-    list.appendChild(card);
-  });
+  } catch (e) {
+    list.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">Erreur de chargement des similaires.</div>';
+  }
 }
 
 async function startCentralization() {
@@ -559,6 +641,7 @@ async function startCentralization() {
 
 window.onload = () => {
   loadDrives();
+  checkDetectedTakeouts();
   updateLiveStats();
 };
 </script>
@@ -573,6 +656,10 @@ def index():
 @app.route('/api/drives', methods=['GET'])
 def api_drives():
     return jsonify(get_system_drives())
+
+@app.route('/api/detect_takeout', methods=['GET'])
+def api_detect_takeout():
+    return jsonify(detect_takeout_archives())
 
 @app.route('/api/set_target', methods=['POST'])
 def api_set_target():
@@ -599,6 +686,22 @@ def api_scan():
     ).start()
     return jsonify({"status": "started"})
 
+@app.route('/api/scan_takeout_zip', methods=['POST'])
+def api_scan_takeout_zip():
+    global scans_active
+    data = request.json
+    zip_path = data.get('path')
+    if not zip_path or not os.path.exists(zip_path):
+        return jsonify({"status": "error", "message": "Fichier ZIP Takeout introuvable."}), 400
+    
+    scans_active += 1
+    threading.Thread(
+        target=scan_takeout_zip,
+        args=(zip_path, scan_progress, zip_path),
+        daemon=True
+    ).start()
+    return jsonify({"status": "started", "path": zip_path})
+
 @app.route('/api/progress', methods=['GET'])
 def api_progress():
     path = request.args.get('path')
@@ -612,7 +715,7 @@ def api_scan_gdrive():
     client_id = GOOGLE_CLIENT_CONFIG["installed"].get("client_id")
     client_secret = GOOGLE_CLIENT_CONFIG["installed"].get("client_secret")
     if not client_id or not client_secret:
-        return jsonify({"status": "error", "message": "Clés Google manquantes dans config/.env"}), 400
+        return jsonify({"status": "error", "message": "Clés Google manquantes dans config/.env (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)."}), 400
     
     gdrive_accounts += 1
     path_key = f"gdrive_{gdrive_accounts}"
@@ -682,12 +785,13 @@ def api_delete_all_exact_duplicates():
             continue
         items.sort(key=lambda it: (it['rating'] or 0, 1 if TARGET_DRIVE and it['file_path'].startswith(TARGET_DRIVE) else 0), reverse=True)
         
-        # Conserver le master (index 0) et supprimer les copies secondaires (hors téléphone)
+        # Conserver le master (index 0) et supprimer les copies secondaires (hors téléphone et zip)
         for it in items[1:]:
             pid = it['id']
             p_path = it['file_path']
             is_phone = bool(it['is_phone'])
-            if not is_phone and os.path.exists(p_path):
+            is_zip = p_path.startswith("zip://")
+            if not is_phone and not is_zip and os.path.exists(p_path):
                 try:
                     os.remove(p_path)
                 except Exception:
@@ -719,10 +823,14 @@ def api_thumb(media_id):
     row = cursor.fetchone()
     conn.close()
 
-    if not row or not os.path.exists(row['file_path']):
-        return "Fichier introuvable", 404
+    if not row:
+        return "Média introuvable", 404
 
-    buf = generate_thumbnail_bytes(row['file_path'], media_type=row['media_type'])
+    f_path = row['file_path']
+    if not f_path.startswith("zip://") and not os.path.exists(f_path):
+        return "Fichier introuvable sur disque", 404
+
+    buf = generate_thumbnail_bytes(f_path, media_type=row['media_type'])
     if buf:
         return send_file(buf, mimetype='image/jpeg')
     return "Erreur vignette", 500

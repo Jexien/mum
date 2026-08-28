@@ -84,7 +84,10 @@ def safe_centralize_and_clean(dest_dir_str):
                 seen_hashes.add(sha256)
             continue
 
-        if not source_file.exists():
+        is_zip = path_str.startswith("zip://")
+        source_file = None if is_zip else Path(path_str)
+
+        if not is_zip and not source_file.exists():
             transfer_progress["errors"] += 1
             continue
 
@@ -105,8 +108,16 @@ def safe_centralize_and_clean(dest_dir_str):
         copy_success = False
 
         try:
-            # 3. Copie de sécurité vers .tmp
-            shutil.copy2(str(source_file), str(target_temp))
+            # 3. Copie / Extraction de sécurité vers .tmp
+            if is_zip:
+                import zipfile
+                content_part = path_str[6:]
+                zip_path_str, internal_file = content_part.split("#", 1)
+                with zipfile.ZipFile(zip_path_str, 'r') as zf:
+                    with zf.open(internal_file) as source_stream, open(target_temp, 'wb') as dest_stream:
+                        shutil.copyfileobj(source_stream, dest_stream)
+            else:
+                shutil.copy2(str(source_file), str(target_temp))
 
             # 4. Vérification d'intégrité industrielle (taille exacte)
             if target_temp.stat().st_size == expected_size:
@@ -127,7 +138,7 @@ def safe_centralize_and_clean(dest_dir_str):
             if sha256:
                 seen_hashes.add(sha256)
 
-            if not is_phone:
+            if not is_phone and not is_zip:
                 # DÉPLACEMENT SÉCURISÉ : la source est supprimée (copie validée)
                 try:
                     os.remove(str(source_file))
@@ -135,6 +146,9 @@ def safe_centralize_and_clean(dest_dir_str):
                     pass
                 transfer_progress["moved"] += 1
                 cursor.execute('UPDATE photos SET file_path = ?, source_name = "Disque Cible" WHERE id = ?', (str(target_final), pid))
+            elif is_zip:
+                transfer_progress["moved"] += 1
+                cursor.execute('UPDATE photos SET file_path = ?, source_name = "Disque Cible (Extrait Takeout)" WHERE id = ?', (str(target_final), pid))
             else:
                 # 🛡️ PROTECTION DU TÉLÉPHONE : L'original reste INTACT sur le smartphone
                 transfer_progress["copied_phone"] += 1
