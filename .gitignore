@@ -25,7 +25,11 @@ token*.json
 *.sqlite3
 memoire_photos.db
 
-# --- Caches & Profils applicatifs MUM ---
+# --- Répertoire de données applicatives (data/) ---
+data/*
+!data/**/.gitkeep
+
+# --- Caches & Profils applicatifs MUM (rétrocompatibilité) ---
 cache_google_drive/
 chrome_takeout_profile/
 Takeout/

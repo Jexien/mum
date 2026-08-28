@@ -56,18 +56,36 @@ GOOGLE_CLIENT_CONFIG = {
     }
 }
 
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+CACHE_DIR = DATA_DIR / "cache"
+PROFILES_DIR = DATA_DIR / "profiles"
+TOKENS_DIR = DATA_DIR / "tokens"
+DB_DIR = DATA_DIR / "db"
+
+for _d in (CACHE_DIR, PROFILES_DIR, TOKENS_DIR, DB_DIR):
+    _d.mkdir(parents=True, exist_ok=True)
+
 def get_google_credentials(account_id):
-    token_file = f'google_token_{account_id}.json'
+    token_file = TOKENS_DIR / f'google_token_{account_id}.json'
+    old_token_file = BASE_DIR / f'google_token_{account_id}.json'
+    if not token_file.exists() and old_token_file.exists():
+        try:
+            shutil.move(str(old_token_file), str(token_file))
+        except Exception:
+            token_file = old_token_file
+
+    token_path_str = str(token_file)
     creds = None
-    if os.path.exists(token_file):
-        creds = Credentials.from_authorized_user_file(token_file, GOOGLE_DRIVE_SCOPES)
+    if os.path.exists(token_path_str):
+        creds = Credentials.from_authorized_user_file(token_path_str, GOOGLE_DRIVE_SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_config(GOOGLE_CLIENT_CONFIG, GOOGLE_DRIVE_SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(token_file, 'w') as token:
+        with open(token_path_str, 'w') as token:
             token.write(creds.to_json())
     return creds
 
@@ -95,7 +113,7 @@ Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 warnings.filterwarnings('ignore')
 
-DB_NAME = "memoire_photos.db"
+DB_NAME = str(DB_DIR / "memoire_photos.db")
 SUPPORTED_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.heic', '.webp')
 
 app = Flask(__name__)
@@ -259,7 +277,7 @@ def process_gdrive_task(account_id):
     scans_active += 1
     scan_progress[path_key] = {"count": 0, "status": "Connexion...", "done": False, "error": False}
 
-    account_cache_dir = os.path.join("cache_google_drive", f"compte_{account_id}")
+    account_cache_dir = os.path.join(str(CACHE_DIR), f"compte_{account_id}")
     os.makedirs(account_cache_dir, exist_ok=True)
 
     try:
@@ -347,7 +365,7 @@ def run_takeout_guide():
         return
 
     from playwright.sync_api import sync_playwright
-    profile_dir = os.path.join(os.getcwd(), "chrome_takeout_profile")
+    profile_dir = os.path.join(str(PROFILES_DIR), "chrome_takeout_profile")
     os.makedirs(profile_dir, exist_ok=True)
     debug_port = 9333
     chrome_proc = None

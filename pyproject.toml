@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mum"
+version = "1.0.0"
+description = "Assistant intelligent de tri, dédoublonnage et nettoyage de photos et disques cloud"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "PolyForm Noncommercial License 1.0.0" }
+authors = [
+    { name = "MUM Contributors" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: System :: Archiving"
+]
+dependencies = [
+    "flask>=2.0.0",
+    "Pillow>=9.0.0",
+    "imagehash>=4.3.0",
+    "playwright>=1.30.0",
+    "google-api-python-client>=2.0.0",
+    "google-auth-oauthlib>=1.0.0",
+    "google-auth-httplib2>=0.1.0",
+    "python-dotenv>=1.0.0"
+]
+
+[project.scripts]
+mum = "main:main"
