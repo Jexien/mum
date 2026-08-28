@@ -1,65 +1,80 @@
-# MUM - Assistant Intelligent de Tri & Nettoyage de Photos / Cloud
+# MUM - Assistant Intelligent de Tri & Nettoyage de Photos et Vidéos Multi-Sources
 
-**MUM** est une application locale dotée d'une interface web moderne permettant de scanner, trier, dédoublonner et organiser efficacement vos collections de photos stockées sur disque local, disques externes ou sur Google Drive / Google Photos (via Takeout).
-
----
-
-## 🌟 Fonctionnalités
-
-- 🔍 **Scan multi-sources** : Détection des disques locaux, clés USB/cartes SD, et intégration Google Drive via API OAuth.
-- ⚡ **Dédoublonnage intelligent** : Algorithme de hachage perceptuel (`imagehash` / pHash, aHash, dHash) pour détecter les doublons exacts et visuels.
-- ⭐ **Évaluation & Scoring automatique** : Notation automatique de la qualité des clichés (résolution, netteté, ratio).
-- 🧹 **Nettoyage sécurisé** : Suppression ciblée des doublons ou déplacement vers un dossier d'archivage sans risque de perte accidentelle.
-- 🌐 **Interface Web interactive** : Tableau de bord local complet en Flask & Tailwind CSS avec prévisualisation des photos.
-- 🔐 **Respect de la vie privée** : Traitement 100% local, aucun envoi de données ou photos vers des serveurs tiers.
+**MUM** est une application locale dotée d'une interface web moderne permettant de scanner, trier, dédoublonner et centraliser automatiquement l'ensemble de vos **photos ET vidéos** stockées sur disques durs, smartphones, clés USB, Google Drive et Google Photos.
 
 ---
 
-## 🚀 Installation & Démarrage
+## 🌟 Fonctionnalités majeures
 
-### 1. Prérequis
-- **Python 3.9+** installé sur votre machine.
-- Google Chrome (requis pour le module d'exportation Google Takeout).
+- 📸 **Photos ET Vidéos** :
+  - Formats images : `.jpg`, `.jpeg`, `.png`, `.heic`, `.webp`, `.tiff`, `.bmp`, `.raw`, `.cr2`, `.nef`, `.arw`, `.dng`...
+  - Formats vidéos : `.mp4`, `.mov`, `.avi`, `.mkv`, `.wmv`, `.m4v`, `.3gp`, `.webm`, `.mts`...
+  - Extraction automatique des vignettes, durées, résolutions et dates de prise de vue.
+- 📱 **Smartphones & Périphériques USB** :
+  - Détection automatique des appareils photos et téléphones Android / iPhone connectés en USB (répertoires `DCIM`, `Camera`, `WhatsApp`).
+  - 🛡️ **Garantie de Sécurité Téléphone** : Vos photos de smartphone sont sauvegardées sur le disque cible mais **JAMAIS effacées de votre téléphone**.
+- ☁️ **Google Drive & Google Photos** :
+  - Scan direct de l'ensemble de vos photos et vidéos Google Drive via l'API officielle.
+  - Assistant interactif pas-à-pas pour l'exportation Google Photos (Takeout).
+- ⚡ **Déduplication double niveau** :
+  - **Doublons exacts (100%)** : Détection instantanée par hachage de contenu SHA-256 et suppression en 1 clic.
+  - **Photos & Vidéos similaires (pHash)** : Rapprochement visuel des rafales et versions compressées avec interface comparative et badge "⭐ Recommandé".
+- 💾 **Centralisation & Nettoyage sécurisé** :
+  - Rassemblement de l'ensemble de vos médias sur le disque dur cible de votre choix.
+  - Copie atomique et vérifiée octet par octet avant toute libération d'espace sur les disques sources.
 
-### 2. Cloner le dépôt
+---
+
+## 🚀 Démarrage rapide
+
+### 1. Installer les dépendances
 ```bash
-git clone https://github.com/votre-nom/mum.git
-cd mum
-```
-
-### 3. Installer les dépendances
-```bash
-pip install -r requirements.txt
+pip install -r config/requirements.txt
 playwright install
 ```
 
-### 4. Configuration
-Copiez le fichier d'exemple `.env.example` en `.env` :
-```bash
-cp .env.example .env
-```
-Remplissez les informations dans le fichier `.env` avec vos identifiants Google OAuth si vous souhaitez utiliser l'intégration Google Drive.
+### 2. Configuration (optionnelle pour Google Drive)
+Copiez `config/.env.example` vers `config/.env` et renseignez vos clés d'API Google si vous souhaitez connecter Google Drive.
 
-### 5. Lancer l'application
+### 3. Lancer l'application
 ```bash
 python mum.py
 ```
-L'interface s'ouvrira automatiquement sur `http://127.0.0.1:5000`.
+L'interface s'ouvre automatiquement dans votre navigateur sur `http://127.0.0.1:5000`.
 
 ---
 
-## 🔒 Confidentialité & Sécurité des données
+## 📂 Structure du projet
 
-Le projet intègre une configuration `.gitignore` stricte afin d'éviter toute fuite accidentelle :
-- Les fichiers `.env` et jetons OAuth (`google_token_*.json`, `credentials.json`) ne sont jamais versionnés.
-- La base de données locale (`memoire_photos.db`), les dossiers de cache (`cache_google_drive/`) et les profils temporaires (`chrome_takeout_profile/`) sont exclus du suivi Git.
-- Les fichiers multimédias locaux sont ignorés par défaut.
+```text
+mum/
+├── config/                     # Configurations, variables d'environnement & dépendances
+│   ├── .env                    # Vos clés réelles (ignoré par Git)
+│   ├── .env.example            # Gabarit de configuration
+│   ├── pyproject.toml          # Spécifications PEP 518/621
+│   └── requirements.txt        # Dépendances Python
+├── data/                       # Données locales d'exécution (ignorées par Git)
+│   ├── cache/                  # Cache des miniatures & photos Google Drive
+│   ├── db/                     # Base SQLite locale
+│   ├── profiles/               # Profils de navigation temporaires
+│   └── tokens/                 # Jetons d'authentification Google OAuth
+├── docs/                       # Documentations complètes
+├── src/                        # Code source modulaire
+│   └── mum/
+│       ├── config.py           # Configuration et constantes
+│       ├── database.py         # Schéma de base de données photos & vidéos
+│       ├── deduplicator.py     # Moteur de déduplication (exacte et pHash)
+│       ├── gdrive.py           # Connecteur Google Drive
+│       ├── media_processor.py  # Analyseur multimédia & vignettes
+│       ├── scanner.py          # Scanner disques & téléphones
+│       ├── takeout.py          # Assistant Google Takeout
+│       ├── transfer.py         # Moteur de transfert et nettoyage sécurisé
+│       └── app.py              # Serveur Flask et interface web
+├── .gitignore                  # Protection stricte anti-fuite
+└── mum.py                      # Point d'entrée principal unique
+```
 
 ---
 
 ## 📄 Licence
-
-Ce projet est distribué sous la licence **PolyForm Noncommercial License 1.0.0**.
-
-- ✅ **Utilisation personnelle & non-commerciale autorisée** : Vous êtes libre d'utiliser, modifier, adapter et partager ce logiciel pour vos besoins personnels, éducatifs ou communautaires.
-- ❌ **Revente & Exploitation commerciale strictement interdite** : Toute revente, intégration dans un produit payant ou exploitation commerciale du code source (ou de ses dérivés) est formellement interdite sans accord écrit préalable.
+Ce projet est distribué sous la licence **PolyForm Noncommercial License 1.0.0** (usage libre et gratuit, revente et exploitation commerciale interdites).
