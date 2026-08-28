@@ -1,81 +1,171 @@
 # ==============================================================================
-# MUM - .gitignore (Protection stricte des données et secrets)
+# MUM - .gitignore (Protection intégrale des données, documents et secrets)
 # ==============================================================================
 
-# --- Identifiants & Secrets (CRITIQUE) ---
+# ------------------------------------------------------------------------------
+# 1. SECRETS, IDENTIFIANTS & CONFIGURATIONS PERSONNELLES (CRITIQUE)
+# ------------------------------------------------------------------------------
 .env
 .env.*
 *.env
 **/*.env
 !**/.env.example
+*.token
+*token*.json
+google_token*.json
 credentials*.json
 client_secret*.json
-google_token*.json
-token*.json
-*.token
+service_account*.json
+*secret*.json
 *.key
 *.pem
 *.p12
 *.pfx
 *.crt
+*.cer
+*.der
+*.pub
+*.kdbx
+*.htpasswd
+*.passwd
 
-# --- Base de données & Données locales ---
+# ------------------------------------------------------------------------------
+# 2. BASES DE DONNÉES & EXPORTS DE DONNÉES (SQLITE / DUMPS)
+# ------------------------------------------------------------------------------
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
 memoire_photos.db
+*.sql
+*.dump
+*.parquet
 
-# --- Répertoire de données applicatives (data/) ---
+# ------------------------------------------------------------------------------
+# 3. RÉPERTOIRE LOCAL DE DONNÉES D'EXÉCUTION (DATA/)
+# ------------------------------------------------------------------------------
 data/*
 !data/**/.gitkeep
 
-# --- Caches & Profils applicatifs MUM (rétrocompatibilité) ---
-cache_google_drive/
-chrome_takeout_profile/
+# ------------------------------------------------------------------------------
+# 4. ARCHIVES, EXPORTS & DOSSIERS TAKEOUT
+# ------------------------------------------------------------------------------
 Takeout/
 takeout*/
-downloads/
-temp/
-tmp/
-
-# --- Médias et fichiers volumineux (photos / vidéos analysées) ---
-*.jpg
-*.jpeg
-*.png
-*.webp
-*.heic
-*.raw
-*.cr2
-*.nef
-*.arw
-*.dng
-*.mp4
-*.mov
-*.avi
-*.mkv
+Takeout*/
+takeout*.zip
 *.zip
 *.tar
 *.tar.gz
 *.tgz
 *.rar
 *.7z
+*.iso
+*.dmg
 
-# --- Environnements virtuels & Dépendances Python ---
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+# ------------------------------------------------------------------------------
+# 5. DOCUMENTS SENSIBLES / BUREAUTIQUES (Évite tout dépôt accidentel)
+# ------------------------------------------------------------------------------
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+*.tsv
+*.ppt
+*.pptx
+*.odt
+*.ods
+*.odp
+*.rtf
+*.txt
+!requirements.txt
+!LICENSE
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!SECURITY.md
+
+# ------------------------------------------------------------------------------
+# 6. PHOTOS, IMAGES & FORMATS BRUTS (RAW)
+# ------------------------------------------------------------------------------
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.heif
+*.avif
+*.tiff
+*.tif
+*.bmp
+*.gif
+*.raw
+*.cr2
+*.cr3
+*.nef
+*.arw
+*.dng
+*.orf
+*.rw2
+*.pef
+*.srw
+
+# ------------------------------------------------------------------------------
+# 7. FICHIERS VIDÉOS ET AUDIOS
+# ------------------------------------------------------------------------------
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wmv
+*.m4v
+*.3gp
+*.webm
+*.flv
+*.mts
+*.m2ts
+*.ts
+*.vob
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.flac
+*.ogg
+*.wma
+
+# ------------------------------------------------------------------------------
+# 8. CACHES, PROFILS & FICHIERS TEMPORAIRES
+# ------------------------------------------------------------------------------
+cache_google_drive/
+chrome_takeout_profile/
+downloads/
+Downloads/
+temp/
+tmp/
+*.tmp
+*.mum_tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# 9. ENVIRONNEMENTS VIRTUELS & COMPILATION PYTHON
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/
@@ -89,24 +179,36 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
-# --- Fichiers d'IDE & Éditeurs ---
+# ------------------------------------------------------------------------------
+# 10. FICHIERS D'ÉDITEURS ET D'IDE (VSCode, JetBrains, etc.)
+# ------------------------------------------------------------------------------
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 *.sublime-project
 *.sublime-workspace
+.project
+.settings/
 
-# --- Fichiers Logs & Crash dumps ---
+# ------------------------------------------------------------------------------
+# 11. FICHIERS JOURNAUX (LOGS) & RAPPORTS DE CRASH
+# ------------------------------------------------------------------------------
 *.log
 logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+crash*.log
 
-# --- Système d'exploitation (Windows / macOS / Linux) ---
+# ------------------------------------------------------------------------------
+# 12. SYSTÈMES D'EXPLOITATION (Windows, macOS, Linux)
+# ------------------------------------------------------------------------------
 .DS_Store
 .DS_Store?
 ._*
