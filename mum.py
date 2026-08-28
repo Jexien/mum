@@ -41,10 +41,10 @@ if __name__ == '__main__':
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
 
-    print("\n" + "🌸" * 30)
-    print(" 🌸 MUM - Assistant Photos & Vidéos est en cours d'exécution !")
-    print(" 🌐 Interface disponible sur : http://127.0.0.1:5000")
-    print(" 💡 Ne fermez pas cette fenêtre avant d'avoir terminé.")
-    print("🌸" * 30 + "\n")
+    print("\n" + "=" * 60)
+    print(" MUM - Assistant Photos et Videos")
+    print(" Interface disponible sur : http://127.0.0.1:5000")
+    print(" Ne fermez pas cette fenetre avant d'avoir termine.")
+    print("=" * 60 + "\n")
 
     app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)

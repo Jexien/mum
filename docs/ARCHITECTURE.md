@@ -1,37 +1,41 @@
 # Architecture technique de MUM
 
-## 📐 Vue d'ensemble
+## Vue d'ensemble
 
-MUM est architecturé autour d'un noyau Python intégrant un serveur web Flask local et plusieurs modules spécialisés :
+MUM est architecture autour d'un noyau Python integrant un serveur web Flask local et plusieurs modules specialises :
 
-```
+```text
 mum/
-├── data/                      # Données locales d'exécution (ignorées par Git)
-│   ├── cache/                 # Cache des vignettes et aperçus Google Drive
-│   ├── db/                    # Base de données locale SQLite (memoire_photos.db)
-│   ├── profiles/              # Profil Chrome dédié à l'assistant Takeout
-│   └── tokens/                # Jetons d'authentification OAuth2 chiffrés
+├── config/                    # Configurations, variables d'environnement & dependances
+│   ├── .env                   # Vos cles reelles (ignore par Git)
+│   ├── .env.example           # Gabarit de configuration
+│   ├── pyproject.toml         # Specifications PEP 518/621
+│   └── requirements.txt       # Dependances Python
+├── data/                      # Donnees locales d'execution (ignorees par Git)
+│   ├── cache/                 # Cache des vignettes et apercus Google Drive
+│   ├── db/                    # Base de donnees locale SQLite (memoire_photos.db)
+│   ├── profiles/              # Profil Chrome dedie a l'assistant Takeout
+│   └── tokens/                # Jetons d'authentification OAuth2 chiffres
 ├── docs/                      # Documentation technique et manuels
 │   ├── ARCHITECTURE.md
-│   └── CONFIGURATION.md
+│   ├── CHANGELOG.md           # Historique des versions (ISO 8601)
+│   ├── CONFIGURATION.md
+│   ├── CONTRIBUTING.md
+│   ├── LICENSE                # Licence PolyForm Noncommercial 1.0.0
+│   ├── README.md
+│   └── SECURITY.md
 ├── src/                       # Modules applicatifs
 │   └── mum/                   # Package Python MUM
-├── .env.example               # Modèle de variables d'environnement
-├── .gitignore                 # Filtrage strict anti-fuite de données
-├── CHANGELOG.md               # Historique des versions (ISO 8601)
-├── CONTRIBUTING.md            # Guide des contributeurs
-├── LICENSE                    # Licence PolyForm Noncommercial 1.0.0
-├── main.py                    # Point d'entrée standard
-├── mum.py                     # Script d'exécution principal
-├── pyproject.toml             # Spécification du projet PEP 518/621
-├── README.md                  # Présentation générale
-└── requirements.txt           # Dépendances Python
+├── .gitignore                 # Filtrage strict anti-fuite de donnees
+└── mum.py                     # Script d'execution principal unique
 ```
 
-## ⚙️ Composants clés
+## Composants cles
 
-1. **Scanner de médias** (`scanner`) : Parcourt les chemins de stockage locaux (disques, USB, téléphones WIA/MTP) et calcule les caractéristiques des images (dimensions, hachage perceptuel `imagehash`).
-2. **Connecteur Google Drive** (`gdrive`) : Interagit avec l'API Google Drive v3 pour récupérer les photos en haute résolution sans nécessiter d'export lourd.
-3. **Assistant Google Takeout** (`takeout`) : Automatise le guidage pas-à-pas dans Google Takeout via Playwright CDP connecté à une instance Chrome sécurisée.
-4. **Moteur de déduplication** : Rapproche les images par hachage exact et visuel (tolérance paramétrable) pour isoler les doublons.
-5. **Interface Web Locale** : Serveur Flask léger délivrant une interface responsive (Tailwind CSS) avec interaction temps réel via API REST.
+1. **Scanner de medias** (`scanner`) : Parcourt les chemins de stockage locaux (disques, USB, telephones WIA/MTP) et calcule les caracteristiques des images et videos.
+2. **Connecteur Google Drive** (`gdrive`) : Interagit avec l'API Google Drive v3 pour recuperer les photos et videos sans export lourd.
+3. **Scanner Takeout ZIP** (`takeout_scanner`) : Analyse et indexe les photos et videos directement dans les fichiers `.zip` sans decompression.
+4. **Assistant Google Takeout** (`takeout`) : Automatise le guidage pas-a-pas dans Google Takeout via Playwright CDP.
+5. **Moteur de deduplication** (`deduplicator`) : Rapproche les images par hachage exact (SHA-256) et visuel (pHash) pour isoler les doublons.
+6. **Moteur de transfert securise** (`transfer`) : Sauvegarde atomique sur disque cible et nettoyage securise (hors telephone).
+7. **Interface Web Locale** (`app`) : Serveur Flask leger delivrant une interface responsive (Tailwind CSS) avec interaction temps reel.

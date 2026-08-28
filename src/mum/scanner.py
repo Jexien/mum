@@ -85,7 +85,7 @@ def detect_connected_smartphones():
     for letter, p_path in dcim_candidates:
         phones.append({
             "id": f"phone_{letter}",
-            "name": f"📱 Smartphone / Appareil Photo ({letter}:\\DCIM)",
+            "name": f"Smartphone / Appareil Photo ({letter}:\\DCIM)",
             "path": p_path,
             "type": "phone",
             "is_phone": True,

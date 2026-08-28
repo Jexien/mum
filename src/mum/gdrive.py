@@ -95,7 +95,7 @@ def scan_gdrive_account(account_id, progress_dict, path_key):
                 info = analyze_file(str(cache_path))
                 if info:
                     batch.append((
-                        f"☁️ Google Drive (Compte {account_id})",
+                        f"Google Drive (Compte {account_id})",
                         0,
                         info["media_type"],
                         str(cache_path),

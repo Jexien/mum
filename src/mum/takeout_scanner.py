@@ -170,7 +170,7 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
                     except Exception:
                         pass
 
-                source_label = f"📦 Google Takeout ({zip_path.name})"
+                source_label = f"Google Takeout ({zip_path.name})"
                 batch.append((
                     source_label,
                     0,

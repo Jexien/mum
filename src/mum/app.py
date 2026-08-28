@@ -192,7 +192,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           <div id="takeoutStatus" class="text-xs text-slate-500 truncate">Prêt</div>
           <button onclick="promptScanTakeoutZip()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-file-zipper"></i>
-            <span>📦 Scanner un fichier .ZIP Takeout</span>
+            <span>Scanner un fichier .ZIP Takeout</span>
           </button>
           <button onclick="startTakeoutGuide()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs py-2 rounded-xl transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
@@ -334,7 +334,7 @@ async function loadDrives() {
     const card = document.createElement('div');
     card.className = "bg-white rounded-2xl p-6 border border-slate-200 card-shadow flex flex-col justify-between";
     const iconClass = drive.is_phone ? "fa-mobile-screen-button text-purple-600" : "fa-hard-drive text-slate-700";
-    const badgeText = drive.is_phone ? "📱 Téléphone (0 suppression)" : (drive.path === currentTargetDrive ? "🎯 Disque Cible" : "Disque Local");
+    const badgeText = drive.is_phone ? "Telephone (Copie seule)" : (drive.path === currentTargetDrive ? "Disque Cible" : "Disque Local");
     const badgeColor = drive.is_phone ? "bg-purple-100 text-purple-700" : (drive.path === currentTargetDrive ? "bg-indigo-100 text-indigo-700 font-bold" : "bg-slate-100 text-slate-600");
 
     card.innerHTML = `
@@ -567,7 +567,7 @@ async function loadExactDuplicates() {
     const groups = await res.json();
 
     if (!groups || groups.length === 0) {
-      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">🎉 Aucun doublon exact détecté dans votre photothèque !</div>';
+      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">Aucun doublon exact detecte dans votre phototheque.</div>';
       return;
     }
 
@@ -579,8 +579,8 @@ async function loadExactDuplicates() {
       let itemsHtml = '';
       g.items.forEach(it => {
         const isMasterBadge = it.is_master 
-          ? '<span class="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold">✅ Gardé</span>'
-          : '<span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-bold">🗑️ Doublon</span>';
+          ? '<span class="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold">Garde</span>'
+          : '<span class="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-md font-bold">Doublon</span>';
         
         const mediaBadge = it.media_type === 'video'
           ? `<span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold"><i class="fa-solid fa-video"></i> ${it.duration}s</span>`
@@ -616,29 +616,29 @@ async function loadExactDuplicates() {
       list.appendChild(card);
     });
   } catch (e) {
-    list.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">Erreur de chargement. Vérifiez que des scans ont été lancés.</div>';
+    list.innerHTML = '<div class="text-center py-8 text-red-500 text-sm">Erreur de chargement. Verifiez que des scans ont ete lances.</div>';
   }
 }
 
 async function deleteAllExactDuplicates() {
-  if (!confirm("Voulez-vous supprimer toutes les copies redondantes des doublons exacts ? La meilleure version de chaque groupe sera préservée.")) return;
+  if (!confirm("Voulez-vous supprimer toutes les copies redondantes des doublons exacts ? La meilleure version de chaque groupe sera preservee.")) return;
   const res = await fetch('/api/delete_all_exact_duplicates', {method: 'POST'});
   const data = await res.json();
-  alert(`✅ ${data.deleted} doublons supprimés avec succès.`);
+  alert(`${data.deleted} doublons supprimes avec succes.`);
   loadExactDuplicates();
   updateLiveStats();
 }
 
 async function loadSimilarMedia() {
   const list = document.getElementById('similarMediaList');
-  list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Analyse des similarités perceptuelles (pHash)...</div>';
+  list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">Analyse des similarites perceptuelles (pHash)...</div>';
 
   try {
     const res = await fetch('/api/similar_media');
     const clusters = await res.json();
 
     if (!clusters || clusters.length === 0) {
-      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">✨ Aucune photo ou vidéo similaire en rafale détectée.</div>';
+      list.innerHTML = '<div class="bg-white rounded-2xl p-12 text-center text-slate-500 font-medium card-shadow">Aucune photo ou video similaire en rafale detectee.</div>';
       return;
     }
 
@@ -650,7 +650,7 @@ async function loadSimilarMedia() {
       let gridHtml = '';
       c.items.forEach(it => {
         const recBorder = it.is_recommended ? 'border-2 border-emerald-500' : 'border border-slate-200';
-        const recBadge = it.is_recommended ? '<div class="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">⭐ Recommandé</div>' : '';
+        const recBadge = it.is_recommended ? '<div class="absolute top-2 left-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">Recommande</div>' : '';
 
         gridHtml += `
           <div class="relative bg-slate-50 rounded-xl overflow-hidden ${recBorder} flex flex-col justify-between">
@@ -669,7 +669,7 @@ async function loadSimilarMedia() {
 
       card.innerHTML = `
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <span class="text-xs font-bold uppercase text-indigo-600 tracking-wider">Groupe de similarité (${c.count} prises)</span>
+          <span class="text-xs font-bold uppercase text-indigo-600 tracking-wider">Groupe de similarite (${c.count} prises)</span>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">${gridHtml}</div>
       `;
@@ -681,8 +681,8 @@ async function loadSimilarMedia() {
 }
 
 async function startCentralization() {
-  if (!currentTargetDrive) return alert("Veuillez d'abord définir un disque cible dans l'onglet 1.");
-  if (!confirm(`Confirmez-vous le rassemblement de tous vos fichiers sur ${currentTargetDrive} ? Les copies sources sur les disques durs seront nettoyées (le téléphone est protégé et ne sera JAMAIS effacé).`)) return;
+  if (!currentTargetDrive) return alert("Veuillez d'abord definir un disque cible dans l'onglet 1.");
+  if (!confirm(`Confirmez-vous le rassemblement de tous vos fichiers sur ${currentTargetDrive} ? Les copies sources sur les disques durs seront nettoyees (le telephone est protege et ne sera JAMAIS efface).`)) return;
 
   const btn = document.getElementById('btnStartTransfer');
   const box = document.getElementById('transferProgressBox');
@@ -707,7 +707,7 @@ async function startCentralization() {
     if (!p.running && p.current >= p.total) {
       clearInterval(timer);
       btn.disabled = false;
-      alert(`🎉 Centralisation terminée !\n- Fichiers déplacés : ${p.moved}\n- Originaux téléphone préservés : ${p.copied_phone}\n- Doublons fusionnés : ${p.duplicates_merged}`);
+      alert(`Centralisation terminee !\n- Fichiers deplaces : ${p.moved}\n- Originaux telephone preserves : ${p.copied_phone}\n- Doublons fusionnes : ${p.duplicates_merged}`);
       updateLiveStats();
     }
   }, 1000);
