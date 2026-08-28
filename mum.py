@@ -13,11 +13,22 @@ import multiprocessing
 import logging
 from pathlib import Path
 
-# Configuration du PYTHONPATH vers le dossier src
-BASE_DIR = Path(__file__).resolve().parent
-SRC_DIR = BASE_DIR / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+# Configuration du PYTHONPATH vers le dossier src et bundle
+if getattr(sys, 'frozen', False):
+    bundle_dir = Path(sys._MEIPASS).resolve()
+    src_dir = bundle_dir / "src"
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
+    if str(bundle_dir) not in sys.path:
+        sys.path.insert(0, str(bundle_dir))
+    # Éviter le conflit de nom entre le fichier mum.py et le package mum/
+    if 'mum' in sys.modules and not hasattr(sys.modules['mum'], '__path__'):
+        del sys.modules['mum']
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+    SRC_DIR = BASE_DIR / "src"
+    if str(SRC_DIR) not in sys.path:
+        sys.path.insert(0, str(SRC_DIR))
 
 from mum.database import init_db
 from mum.app import app

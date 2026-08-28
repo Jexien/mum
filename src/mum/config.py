@@ -6,7 +6,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Chemins principaux
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+if getattr(sys, 'frozen', False):
+    # Mode exécutable portable autonome : données écrites à côté du .exe
+    BASE_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(sys._MEIPASS).resolve()
+else:
+    # Mode script Python
+    BASE_DIR = Path(__file__).resolve().parent.parent.parent
+    BUNDLE_DIR = BASE_DIR
+
 CONFIG_DIR = BASE_DIR / "config"
 DATA_DIR = BASE_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
