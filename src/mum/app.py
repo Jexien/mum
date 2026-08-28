@@ -149,7 +149,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           </div>
         </div>
         <div class="mt-6 pt-4 border-t border-slate-100 space-y-3">
-          <div id="gdriveProgress" class="hidden text-xs text-blue-600 font-medium animate-pulse">Scan en cours...</div>
+          <div id="gdriveProgressBox" class="hidden space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold text-blue-700">
+              <span id="gdriveProgressText">Scan en cours...</span>
+              <span id="gdriveProgressPct">0%</span>
+            </div>
+            <div class="w-full bg-blue-100 rounded-full h-2 overflow-hidden">
+              <div id="gdriveProgressBar" class="bg-blue-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
           <button onclick="scanGDrive()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-cloud-arrow-down"></i>
             <span>Scanner Google Drive</span>
@@ -171,7 +179,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <p class="text-xs text-slate-500 mt-1">Assistant d'export ou lecture directe de vos fichiers .ZIP sans décompression.</p>
           </div>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-100 space-y-2">
+        <div class="mt-6 pt-4 border-t border-slate-100 space-y-3">
+          <div id="takeoutProgressBox" class="hidden space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold text-amber-800">
+              <span id="takeoutProgressText" class="truncate pr-2">Analyse du ZIP...</span>
+              <span id="takeoutProgressPct" class="flex-shrink-0">0%</span>
+            </div>
+            <div class="w-full bg-amber-100 rounded-full h-2 overflow-hidden">
+              <div id="takeoutProgressBar" class="bg-amber-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
           <div id="takeoutStatus" class="text-xs text-slate-500 truncate">Prêt</div>
           <button onclick="promptScanTakeoutZip()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-file-zipper"></i>
@@ -344,8 +361,16 @@ async function loadDrives() {
         </div>
       </div>
       <div class="mt-6 pt-4 border-t border-slate-100 space-y-3">
-        <div id="prog-${drive.id}" class="hidden text-xs text-indigo-600 font-medium">En attente...</div>
-        <button onclick="scanDrive('${drive.name.replace(/'/g, "\\'")}', '${drive.path.replace(/\\\\/g, '\\\\\\\\')}', ${drive.is_phone}, '${drive.id}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
+        <div id="prog-box-${drive.id}" class="hidden space-y-1.5">
+          <div class="flex justify-between text-xs font-semibold text-indigo-700">
+            <span id="prog-txt-${drive.id}" class="truncate pr-2">Démarrage...</span>
+            <span id="prog-pct-${drive.id}" class="flex-shrink-0">0%</span>
+          </div>
+          <div class="w-full bg-indigo-100 rounded-full h-2 overflow-hidden">
+            <div id="prog-bar-${drive.id}" class="bg-indigo-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        <button id="btn-scan-${drive.id}" onclick="scanDrive('${drive.name.replace(/'/g, "\\'")}', '${drive.path.replace(/\\\\/g, '\\\\\\\\')}', ${drive.is_phone}, '${drive.id}')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium text-sm py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
           <i class="fa-solid fa-magnifying-glass"></i>
           <span>Scanner Photos & Vidéos</span>
         </button>
@@ -382,8 +407,14 @@ async function promptScanTakeoutZip() {
 }
 
 async function scanTakeoutZipPath(pathStr) {
+  const box = document.getElementById('takeoutProgressBox');
+  const txt = document.getElementById('takeoutProgressText');
+  const pct = document.getElementById('takeoutProgressPct');
+  const bar = document.getElementById('takeoutProgressBar');
   const statusElem = document.getElementById('takeoutStatus');
-  statusElem.innerText = "Scan du ZIP Takeout démarré...";
+
+  if (box) box.classList.remove('hidden');
+  if (txt) txt.innerText = "Ouverture du fichier ZIP...";
 
   const res = await fetch('/api/scan_takeout_zip', {
     method: 'POST',
@@ -393,18 +424,25 @@ async function scanTakeoutZipPath(pathStr) {
   const data = await res.json();
   if (data.status === 'error') {
     alert(data.message);
+    if (box) box.classList.add('hidden');
     return;
   }
 
   const timer = setInterval(async () => {
     const pRes = await fetch(`/api/progress?path=${encodeURIComponent(pathStr)}`);
     const p = await pRes.json();
-    statusElem.innerText = `${p.status} (${p.count} trouvés)`;
+    
+    if (txt) txt.innerText = p.status;
+    const percent = p.percent || (p.done ? 100 : 0);
+    if (pct) pct.innerText = `${percent}%`;
+    if (bar) bar.style.width = `${percent}%`;
+    if (statusElem) statusElem.innerText = `${p.count} médias indexés`;
+
     if (p.done) {
       clearInterval(timer);
       updateLiveStats();
     }
-  }, 1000);
+  }, 600);
 }
 
 async function saveTargetDrive() {
@@ -426,10 +464,16 @@ async function saveTargetDrive() {
 }
 
 async function scanDrive(name, path, isPhone, driveId) {
-  const progElem = document.getElementById(`prog-${driveId}`);
-  if (progElem) {
-    progElem.classList.remove('hidden');
-    progElem.innerText = "Démarrage du scan...";
+  const box = document.getElementById(`prog-box-${driveId}`);
+  const txt = document.getElementById(`prog-txt-${driveId}`);
+  const pct = document.getElementById(`prog-pct-${driveId}`);
+  const bar = document.getElementById(`prog-bar-${driveId}`);
+  const btn = document.getElementById(`btn-scan-${driveId}`);
+
+  if (box) box.classList.remove('hidden');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
   }
 
   await fetch('/api/scan', {
@@ -441,23 +485,53 @@ async function scanDrive(name, path, isPhone, driveId) {
   const timer = setInterval(async () => {
     const res = await fetch(`/api/progress?path=${encodeURIComponent(path)}`);
     const p = await res.json();
-    if (progElem) progElem.innerText = `${p.status} (${p.count} trouvés)`;
+    
+    if (txt) txt.innerText = p.status;
+    const percent = p.percent || (p.done ? 100 : 0);
+    if (pct) pct.innerText = `${percent}%`;
+    if (bar) bar.style.width = `${percent}%`;
+
+    if (p.done) {
+      clearInterval(timer);
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      updateLiveStats();
+    }
+  }, 600);
+}
+
+async function scanGDrive() {
+  const box = document.getElementById('gdriveProgressBox');
+  const txt = document.getElementById('gdriveProgressText');
+  const pct = document.getElementById('gdriveProgressPct');
+  const bar = document.getElementById('gdriveProgressBar');
+
+  if (box) box.classList.remove('hidden');
+  if (txt) txt.innerText = "Connexion Google Drive...";
+
+  const res = await fetch('/api/scan_gdrive', {method: 'POST'});
+  const data = await res.json();
+  if (data.status === 'error') {
+    alert(data.message);
+    if (box) box.classList.add('hidden');
+    return;
+  }
+
+  const key = data.key;
+  const timer = setInterval(async () => {
+    const pRes = await fetch(`/api/progress?path=${encodeURIComponent(key)}`);
+    const p = await pRes.json();
+    if (txt) txt.innerText = p.status;
+    if (bar) bar.style.width = p.done ? '100%' : '60%';
+    if (pct) pct.innerText = p.done ? '100%' : `${p.count} trouvés`;
+
     if (p.done) {
       clearInterval(timer);
       updateLiveStats();
     }
   }, 1000);
-}
-
-async function scanGDrive() {
-  const prog = document.getElementById('gdriveProgress');
-  prog.classList.remove('hidden');
-  const res = await fetch('/api/scan_gdrive', {method: 'POST'});
-  const data = await res.json();
-  if (data.status === 'error') {
-    alert(data.message);
-    prog.classList.add('hidden');
-  }
 }
 
 async function startTakeoutGuide() {

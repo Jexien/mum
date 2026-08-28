@@ -4,12 +4,11 @@ import os
 import sys
 import string
 import shutil
-import subprocess
 from pathlib import Path
 import concurrent.futures
 import multiprocessing
 
-from .config import ALL_MEDIA_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
+from .config import ALL_MEDIA_EXTENSIONS
 from .media_processor import analyze_file
 from .database import insert_media_batch
 
@@ -31,7 +30,6 @@ def get_system_drives():
                 except Exception:
                     total_gb, free_gb, used_gb, percent = 0, 0, 0, 0
 
-                # Type de lecteur
                 label = f"Disque ({letter}:)"
                 drive_type = "disk"
                 if letter == 'C':
@@ -73,7 +71,6 @@ def detect_connected_smartphones():
     if os.name != 'nt':
         return phones
 
-    # Recherche de répertoires DCIM typiques sur les lecteurs amovibles
     dcim_candidates = []
     for letter in string.ascii_uppercase:
         if letter in ('C', 'A', 'B'):
@@ -101,19 +98,52 @@ def detect_connected_smartphones():
     return phones
 
 def scan_directory(source_name, target_path, is_phone, progress_dict, path_key):
-    """Parcourt récursivement un dossier pour indexer photos et vidéos en base."""
+    """Parcourt récursivement un dossier pour indexer photos et vidéos en base avec progression précise."""
     target = Path(target_path)
     if not target.exists():
-        progress_dict[path_key] = {"count": 0, "status": "Dossier introuvable", "done": True, "error": True}
+        progress_dict[path_key] = {
+            "count": 0, "total": 0, "percent": 0,
+            "status": "Dossier introuvable", "done": True, "error": True, "current_file": ""
+        }
         return
 
-    progress_dict[path_key] = {"count": 0, "status": "Analyse en cours...", "done": False, "error": False}
+    progress_dict[path_key] = {
+        "count": 0, "total": 0, "percent": 0,
+        "status": "Découverte des fichiers...", "done": False, "error": False, "current_file": ""
+    }
 
     ignored_dirs = {
         '$RECYCLE.BIN', 'RECYCLER', 'RECYCLED', 'SYSTEM VOLUME INFORMATION',
         'WINDOWS', 'PROGRAM FILES', 'PROGRAM FILES (X86)', 'PROGRAMDATA',
         'NODE_MODULES', '.GIT', '__PYCACHE__', 'APPDATA'
     }
+
+    # 1. Découverte rapide de tous les fichiers médias
+    candidate_files = []
+    try:
+        for root, dirs, files in os.walk(str(target)):
+            dirs[:] = [d for d in dirs if d.upper() not in ignored_dirs and not d.startswith('.')]
+            for f in files:
+                ext = os.path.splitext(f)[1].lower()
+                if ext in ALL_MEDIA_EXTENSIONS:
+                    candidate_files.append(Path(root) / f)
+    except Exception as e:
+        progress_dict[path_key] = {
+            "count": 0, "total": 0, "percent": 0,
+            "status": f"Erreur d'accès : {e}", "done": True, "error": True, "current_file": ""
+        }
+        return
+
+    total_candidates = len(candidate_files)
+    if total_candidates == 0:
+        progress_dict[path_key] = {
+            "count": 0, "total": 0, "percent": 100,
+            "status": "Aucun fichier photo ou vidéo trouvé", "done": True, "error": False, "current_file": ""
+        }
+        return
+
+    progress_dict[path_key]["total"] = total_candidates
+    progress_dict[path_key]["status"] = f"Analyse de {total_candidates} médias..."
 
     cpu_cores = multiprocessing.cpu_count() or 4
     optimal_threads = min(32, cpu_cores * 2)
@@ -122,8 +152,8 @@ def scan_directory(source_name, target_path, is_phone, progress_dict, path_key):
         try:
             info = analyze_file(file_path)
             if not info:
-                return None
-            return (
+                return (None, file_path.name)
+            record = (
                 source_name,
                 1 if is_phone else 0,
                 info["media_type"],
@@ -138,50 +168,41 @@ def scan_directory(source_name, target_path, is_phone, progress_dict, path_key):
                 info["rating"],
                 None
             )
+            return (record, file_path.name)
         except Exception:
-            return None
+            return (None, file_path.name)
 
     batch = []
-    total_found = 0
+    indexed_count = 0
+    scanned_count = 0
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=optimal_threads) as executor:
-            futures = []
-            for root, dirs, files in os.walk(str(target)):
-                # Élaguer les répertoires système
-                dirs[:] = [d for d in dirs if d.upper() not in ignored_dirs and not d.startswith('.')]
-                
-                for f in files:
-                    ext = os.path.splitext(f)[1].lower()
-                    if ext in ALL_MEDIA_EXTENSIONS:
-                        f_path = Path(root) / f
-                        futures.append(executor.submit(process_file_task, f_path))
-
-                        if len(futures) >= 150:
-                            for f_comp in concurrent.futures.as_completed(futures):
-                                res = f_comp.result()
-                                if res:
-                                    batch.append(res)
-                                    total_found += 1
-                                    progress_dict[path_key]["count"] = total_found
-                            
-                            if batch:
-                                insert_media_batch(batch)
-                                batch = []
-                            futures = []
-
-            for f_comp in concurrent.futures.as_completed(futures):
-                res = f_comp.result()
+            futures = [executor.submit(process_file_task, f_path) for f_path in candidate_files]
+            
+            for future in concurrent.futures.as_completed(futures):
+                scanned_count += 1
+                res, filename = future.result()
                 if res:
                     batch.append(res)
-                    total_found += 1
-                    progress_dict[path_key]["count"] = total_found
+                    indexed_count += 1
+
+                percent = min(99, int((scanned_count / total_candidates) * 100))
+                progress_dict[path_key]["count"] = indexed_count
+                progress_dict[path_key]["percent"] = percent
+                progress_dict[path_key]["current_file"] = filename
+                progress_dict[path_key]["status"] = f"Analyse {scanned_count}/{total_candidates} ({percent}%) - {indexed_count} indexés"
+
+                if len(batch) >= 100:
+                    insert_media_batch(batch)
+                    batch = []
 
             if batch:
                 insert_media_batch(batch)
                 batch = []
 
-        progress_dict[path_key]["status"] = f"Terminé ({total_found} médias trouvés)"
+        progress_dict[path_key]["percent"] = 100
+        progress_dict[path_key]["status"] = f"Terminé ({indexed_count} photos & vidéos indexées)"
         progress_dict[path_key]["done"] = True
     except Exception as e:
         progress_dict[path_key]["status"] = f"Erreur : {e}"

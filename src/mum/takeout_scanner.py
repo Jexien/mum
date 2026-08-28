@@ -90,11 +90,14 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
 
     batch = []
     count = 0
+    processed_entries = 0
 
     try:
         with zipfile.ZipFile(str(zip_path), 'r') as zf:
             infolist = zf.infolist()
             total_entries = len(infolist)
+            progress_dict[path_key]["total"] = total_entries
+            progress_dict[path_key]["percent"] = 0
             
             # Indexer d'abord les fichiers .json de métadonnées pour des recherches ultra-rapides
             json_meta_map = {}
@@ -105,6 +108,10 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
             progress_dict[path_key]["status"] = f"Analyse de {total_entries} éléments..."
 
             for info in infolist:
+                processed_entries += 1
+                percent = min(99, int((processed_entries / max(1, total_entries)) * 100))
+                progress_dict[path_key]["percent"] = percent
+
                 if info.is_dir():
                     continue
 
@@ -147,7 +154,7 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
                     try:
                         with Image.open(io.BytesIO(raw_bytes)) as img:
                             w, h = img.size
-                            if w >= 200 and h >= 200:
+                            if w >= 150 and h >= 150:
                                 resolution = f"{w}x{h}"
                                 megapixels = (w * h) / 1_000_000
                                 size_mb = file_size / (1024 * 1024)
@@ -158,8 +165,6 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
                 else:
                     # Cas Vidéo : décodage mémoire
                     try:
-                        nparr = np.frombuffer(raw_bytes[:min(len(raw_bytes), 5_000_000)], np.uint8)
-                        # Estimation basique de vidéo
                         size_mb = file_size / (1024 * 1024)
                         rating = round(min(10.0, max(1.0, size_mb * 0.5)), 1)
                     except Exception:
@@ -184,6 +189,7 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
 
                 count += 1
                 progress_dict[path_key]["count"] = count
+                progress_dict[path_key]["status"] = f"Analyse ZIP : {count} médias trouvés ({percent}%)"
 
                 if len(batch) >= 50:
                     insert_media_batch(batch)
@@ -192,6 +198,7 @@ def scan_takeout_zip(zip_path_str, progress_dict, path_key):
             if batch:
                 insert_media_batch(batch)
 
+        progress_dict[path_key]["percent"] = 100
         progress_dict[path_key]["status"] = f"Terminé ({count} médias indexés depuis le ZIP)"
         progress_dict[path_key]["done"] = True
 
