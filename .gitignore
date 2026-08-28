@@ -5,8 +5,9 @@
 # --- Identifiants & Secrets (CRITIQUE) ---
 .env
 .env.*
-!.env.example
 *.env
+**/*.env
+!**/.env.example
 credentials*.json
 client_secret*.json
 google_token*.json

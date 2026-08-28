@@ -40,9 +40,19 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from dotenv import load_dotenv
 
-# --- Google Drive : contrairement a Google Photos, cette API n'a pas ete restreinte par
-# Google et permet toujours de lister/telecharger les fichiers directement (pas de Takeout requis).
+BASE_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = BASE_DIR / "config"
+DATA_DIR = BASE_DIR / "data"
+CACHE_DIR = DATA_DIR / "cache"
+PROFILES_DIR = DATA_DIR / "profiles"
+TOKENS_DIR = DATA_DIR / "tokens"
+DB_DIR = DATA_DIR / "db"
+
+# Chargement de la configuration (.env à la racine ou dans config/)
 load_dotenv()
+if (CONFIG_DIR / ".env").exists():
+    load_dotenv(dotenv_path=CONFIG_DIR / ".env")
+
 GOOGLE_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 GOOGLE_CLIENT_CONFIG = {
     "installed": {
@@ -55,13 +65,6 @@ GOOGLE_CLIENT_CONFIG = {
         "redirect_uris": [os.getenv("GOOGLE_REDIRECT_URI", "http://localhost")]
     }
 }
-
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-CACHE_DIR = DATA_DIR / "cache"
-PROFILES_DIR = DATA_DIR / "profiles"
-TOKENS_DIR = DATA_DIR / "tokens"
-DB_DIR = DATA_DIR / "db"
 
 for _d in (CACHE_DIR, PROFILES_DIR, TOKENS_DIR, DB_DIR):
     _d.mkdir(parents=True, exist_ok=True)
