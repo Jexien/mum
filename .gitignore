@@ -1,0 +1,113 @@
+# ==============================================================================
+# MUM - .gitignore (Protection stricte des données et secrets)
+# ==============================================================================
+
+# --- Identifiants & Secrets (CRITIQUE) ---
+.env
+.env.*
+!.env.example
+*.env
+credentials*.json
+client_secret*.json
+google_token*.json
+token*.json
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+
+# --- Base de données & Données locales ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+memoire_photos.db
+
+# --- Caches & Profils applicatifs MUM ---
+cache_google_drive/
+chrome_takeout_profile/
+Takeout/
+takeout*/
+downloads/
+temp/
+tmp/
+
+# --- Médias et fichiers volumineux (photos / vidéos analysées) ---
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.raw
+*.cr2
+*.nef
+*.arw
+*.dng
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# --- Environnements virtuels & Dépendances Python ---
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Fichiers d'IDE & Éditeurs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# --- Fichiers Logs & Crash dumps ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Système d'exploitation (Windows / macOS / Linux) ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
